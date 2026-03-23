@@ -94,12 +94,12 @@ class MainActivity : AppCompatActivity() {
                 when {
                     phoneNumbers.isEmpty() -> {
                         selectedPhoneNumber = null
-                        tvPhoneNumber.text = "-"
+                        tvPhoneNumber.setText("-")
                         tvStatus.text = "전화번호를 찾을 수 없습니다"
                     }
                     phoneNumbers.size == 1 -> {
                         selectedPhoneNumber = phoneNumbers[0]
-                        tvPhoneNumber.text = phoneNumbers[0]
+                        tvPhoneNumber.setText(phoneNumbers[0])
                         tvStatus.text = "전화번호 인식 완료"
                     }
                     else -> {
@@ -132,7 +132,7 @@ class MainActivity : AppCompatActivity() {
             .setTitle("전화번호를 선택하세요")
             .setItems(phoneNumbers.toTypedArray()) { _, which ->
                 selectedPhoneNumber = phoneNumbers[which]
-                tvPhoneNumber.text = phoneNumbers[which]
+                tvPhoneNumber.setText(phoneNumbers[which])
                 tvStatus.text = "전화번호 선택 완료"
             }
             .setCancelable(true)
