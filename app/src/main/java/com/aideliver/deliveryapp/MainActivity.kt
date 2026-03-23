@@ -9,6 +9,7 @@ import android.os.Bundle
 import android.os.Environment
 import android.telephony.SmsManager
 import android.widget.Button
+import android.widget.EditText
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
@@ -26,7 +27,7 @@ import java.io.File
 class MainActivity : AppCompatActivity() {
 
     private lateinit var ivReceipt: ImageView
-    private lateinit var tvPhoneNumber: TextView
+    private lateinit var tvPhoneNumber: EditText
     private lateinit var tvStatus: TextView
 
     private var selectedPhoneNumber: String? = null
@@ -139,8 +140,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun makeCall() {
-        val number = selectedPhoneNumber ?: run {
-            Toast.makeText(this, "먼저 주문전표를 촬영해 주세요.", Toast.LENGTH_SHORT).show()
+        val number = tvPhoneNumber.text.toString().trim().takeIf { it.isNotEmpty() && it != "-" } ?: run {
+            Toast.makeText(this, "전화번호를 입력하거나 주문전표를 촬영해 주세요.", Toast.LENGTH_SHORT).show()
             return
         }
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CALL_PHONE)
@@ -153,8 +154,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun sendSms() {
-        val number = selectedPhoneNumber ?: run {
-            Toast.makeText(this, "먼저 주문전표를 촬영해 주세요.", Toast.LENGTH_SHORT).show()
+        val number = tvPhoneNumber.text.toString().trim().takeIf { it.isNotEmpty() && it != "-" } ?: run {
+            Toast.makeText(this, "전화번호를 입력하거나 주문전표를 촬영해 주세요.", Toast.LENGTH_SHORT).show()
             return
         }
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS)
