@@ -116,7 +116,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun extractPhoneNumbers(text: String): List<String> {
         // 한국 전화번호 패턴: 010-1234-5678, 02-1234-5678, 031-123-4567 등
-        val regex = Regex("""0\d{1,2}[-.\s]?\d{3,4}[-.\s]?\d{4}""")
+        val regex = Regex("""0\d{1,3}[-.\s]?\d{3,4}[-.\s]?\d{4}""")
         return regex.findAll(text)
             .map { match ->
                 match.value
