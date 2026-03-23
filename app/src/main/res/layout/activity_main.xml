@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="#F0F4F8">
+
+    <!-- 주문전표 이미지 영역 -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="#FFFFFF"
+        android:layout_marginBottom="12dp">
+
+        <ImageView
+            android:id="@+id/ivReceipt"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="fitCenter"
+            android:contentDescription="주문전표 이미지" />
+
+        <TextView
+            android:id="@+id/tvPlaceholder"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="촬영 버튼을 눌러&#10;주문전표를 찍어주세요"
+            android:textSize="16sp"
+            android:textColor="#9E9E9E"
+            android:gravity="center" />
+    </FrameLayout>
+
+    <!-- 인식된 전화번호 표시 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="#FFFFFF"
+        android:padding="14dp"
+        android:layout_marginBottom="12dp"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="인식된 전화번호"
+            android:textSize="13sp"
+            android:textColor="#757575" />
+
+        <TextView
+            android:id="@+id/tvPhoneNumber"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="-"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:textColor="#1565C0" />
+    </LinearLayout>
+
+    <!-- 상태 메시지 -->
+    <TextView
+        android:id="@+id/tvStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text=""
+        android:textSize="13sp"
+        android:textColor="#757575"
+        android:gravity="center"
+        android:paddingBottom="8dp" />
+
+    <!-- 촬영 버튼 -->
+    <Button
+        android:id="@+id/btnCamera"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:text="주문전표 촬영"
+        android:textSize="17sp"
+        android:backgroundTint="#1976D2"
+        android:layout_marginBottom="8dp" />
+
+    <!-- 통화 / 문자 버튼 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="8dp">
+
+        <Button
+            android:id="@+id/btnCall"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_weight="1"
+            android:text="통화"
+            android:textSize="17sp"
+            android:backgroundTint="#2E7D32"
+            android:layout_marginEnd="6dp" />
+
+        <Button
+            android:id="@+id/btnSms"
+            android:layout_width="0dp"
+            android:layout_height="56dp"
+            android:layout_weight="1"
+            android:text="문자 전송"
+            android:textSize="17sp"
+            android:backgroundTint="#E65100"
+            android:layout_marginStart="6dp" />
+    </LinearLayout>
+
+    <!-- 설정 버튼 -->
+    <Button
+        android:id="@+id/btnSettings"
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:text="문자 내용 설정"
+        android:textSize="14sp"
+        android:backgroundTint="#78909C" />
+
+</LinearLayout>
