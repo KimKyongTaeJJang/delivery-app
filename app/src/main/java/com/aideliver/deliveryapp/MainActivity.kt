@@ -115,8 +115,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun extractPhoneNumbers(text: String): List<String> {
-        // 숫자 사이의 공백/줄바꿈 모두 제거 (OCR이 번호를 여러 줄로 분리하는 경우 처리)
-        val normalized = text.replace(Regex("""(?<=\d)\s+(?=\d)"""), "")
+        // 숫자·하이픈·점 사이의 공백/줄바꿈 제거 (OCR 분리 출력 전체 대응)
+        val normalized = text.replace(Regex("""(?<=[\d\-.])\s+(?=[\d\-.])"""), "")
 
         // 0으로 시작하고 숫자·하이픈·점으로 이루어진 블록 추출 후 자릿수로 검증
         val regex = Regex("""0[\d\-\.]{7,13}\d""")
