@@ -115,9 +115,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun extractPhoneNumbers(text: String): List<String> {
+        // 숫자와 숫자 사이의 줄바꿈 제거 (곡면 영수증에서 번호가 줄 분리되는 경우 처리)
+        val normalizedText = text.replace(Regex("""(\d)\n+(\d)"""), "$1$2")
         // 한국 전화번호 패턴: 010-1234-5678, 02-1234-5678, 031-123-4567 등
         val regex = Regex("""0\d{1,3}[-.\s]{0,4}\d{3,4}[-.\s]{0,4}\d{4}""")
-        return regex.findAll(text)
+        return regex.findAll(normalizedText)
             .map { match ->
                 match.value
                     .replace(Regex("""[.\s]"""), "-")
