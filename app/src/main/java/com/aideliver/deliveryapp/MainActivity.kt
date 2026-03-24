@@ -118,28 +118,31 @@ class MainActivity : AppCompatActivity() {
             )))
         })
 
-        // 4단계: 침식(erosion) — 글자 획을 1픽셀 얇게
+        // 4단계: 침식(erosion) 2회 — 글자 획을 2픽셀 얇게
         // 두꺼운 획이 0→( 또는 0→G 로 오인식되는 현상 개선
         val w = binary.width
         val h = binary.height
-        val src = IntArray(w * h)
-        binary.getPixels(src, 0, w, 0, 0, w, h)
-        val dst = src.copyOf()
-        for (y in 1 until h - 1) {
-            for (x in 1 until w - 1) {
-                val i = y * w + x
-                if (Color.red(src[i]) < 128) {          // 어두운 픽셀(글자)
-                    if (Color.red(src[i - 1]) > 200 ||  // 왼쪽 이웃이 밝으면
-                        Color.red(src[i + 1]) > 200 ||  // 오른쪽
-                        Color.red(src[i - w]) > 200 ||  // 위
-                        Color.red(src[i + w]) > 200) {  // 아래
-                        dst[i] = Color.WHITE             // 경계 픽셀 제거 → 획 얇아짐
+        var pixels = IntArray(w * h)
+        binary.getPixels(pixels, 0, w, 0, 0, w, h)
+        repeat(2) {
+            val eroded = pixels.copyOf()
+            for (y in 1 until h - 1) {
+                for (x in 1 until w - 1) {
+                    val i = y * w + x
+                    if (Color.red(pixels[i]) < 128) {
+                        if (Color.red(pixels[i - 1]) > 200 ||
+                            Color.red(pixels[i + 1]) > 200 ||
+                            Color.red(pixels[i - w]) > 200 ||
+                            Color.red(pixels[i + w]) > 200) {
+                            eroded[i] = Color.WHITE
+                        }
                     }
                 }
             }
+            pixels = eroded
         }
         val result = Bitmap.createBitmap(w, h, binary.config)
-        result.setPixels(dst, 0, w, 0, 0, w, h)
+        result.setPixels(pixels, 0, w, 0, 0, w, h)
         return result
     }
 
@@ -183,11 +186,15 @@ class MainActivity : AppCompatActivity() {
         // 숫자·하이픈·점 사이의 공백/줄바꿈 제거 (OCR 분리 출력 전체 대응)
         val normalized = corrected.replace(Regex("""(?<=[\d\-.])\s+(?=[\d\-.])"""), "")
 
+        // 0으로 오인식되는 문자 집합 (앞자리 보정용)
+        val zeroLikes = setOf('(', '[', '{', 'C', 'G', 'O', 'o', 'Q', 'ㅇ', 'ㅎ', '6')
+        // 5로 오인식되는 문자 집합
+        val fiveLikes = setOf('5', '6', 'S', 's')
+
         // 첫 글자에 1도 허용 (0을 1로 오인식하는 경우 대응), 자릿수로 검증
         val regex = Regex("""[01][\d\-\.]{7,13}\d""")
         return regex.findAll(normalized)
             .map { match ->
-                // 테스트용: 매칭 위치 앞 2글자를 괄호로 표시
                 val start = match.range.first
                 val prefix = normalized.substring(maxOf(0, start - 2), start)
                 Pair(prefix, match.value)
@@ -200,7 +207,12 @@ class MainActivity : AppCompatActivity() {
                 val phone = fixed.replace(".", "-")
                                  .replace(Regex("""-{2,}"""), "-")
                                  .trim('-')
-                "[$prefix]$phone"  // 예: [O5]0503-7517-0374
+                // 앞 2글자가 '05'의 오인식 패턴이면 앞에 05 보완
+                // 예: (6→05, (5→05, G5→05, 65→05
+                val prepend05 = prefix.length == 2 &&
+                                prefix[0] in zeroLikes &&
+                                prefix[1] in fiveLikes
+                if (prepend05) "05$phone" else phone
             }
             .distinct()
             .toList()
@@ -221,8 +233,7 @@ class MainActivity : AppCompatActivity() {
     private fun getCleanNumber(): String? {
         val text = tvPhoneNumber.text.toString().trim()
         if (text.isEmpty() || text == "-") return null
-        // 테스트용 접두사 [XX] 제거
-        return text.replace(Regex("""^\[.*?]"""), "").trim()
+        return text
     }
 
     private fun makeCall() {
