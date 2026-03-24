@@ -118,7 +118,8 @@ class MainActivity : AppCompatActivity() {
         // OCR 오인식 보정: 숫자 0으로 혼동되는 문자들을 0으로 치환
         val corrected = text
             .replace('O', '0').replace('o', '0')  // 영문 O
-            .replace('ㅇ', '0')                    // 한글 ㅇ
+            .replace('Q', '0')                    // 영문 Q
+            .replace('ㅇ', '0').replace('ㅎ', '0') // 한글 ㅇ, ㅎ
         // 숫자·하이픈·점 사이의 공백/줄바꿈 제거 (OCR 분리 출력 전체 대응)
         val normalized = corrected.replace(Regex("""(?<=[\d\-.])\s+(?=[\d\-.])"""), "")
 
