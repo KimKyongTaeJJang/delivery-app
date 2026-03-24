@@ -3,6 +3,12 @@ package com.aideliver.deliveryapp
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
+import android.graphics.Paint
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -84,8 +90,38 @@ class MainActivity : AppCompatActivity() {
         takePictureLauncher.launch(photoUri)
     }
 
+    private fun preprocessBitmap(uri: Uri): Bitmap {
+        val original = BitmapFactory.decodeStream(contentResolver.openInputStream(uri))
+
+        // 1단계: 그레이스케일 변환
+        val gray = Bitmap.createBitmap(original.width, original.height, Bitmap.Config.ARGB_8888)
+        val grayCanvas = Canvas(gray)
+        val grayPaint = Paint()
+        val grayMatrix = ColorMatrix()
+        grayMatrix.setSaturation(0f)
+        grayPaint.colorFilter = ColorMatrixColorFilter(grayMatrix)
+        grayCanvas.drawBitmap(original, 0f, 0f, grayPaint)
+
+        // 2단계: 대비 강화 + 이진화 (열영수증 번짐 제거)
+        val result = Bitmap.createBitmap(gray.width, gray.height, Bitmap.Config.ARGB_8888)
+        val resultCanvas = Canvas(result)
+        val contrastPaint = Paint()
+        // 대비 3배, 밝기 -100 → 흐린 글자는 검정으로, 배경은 흰색으로
+        val cm = ColorMatrix(floatArrayOf(
+            3f, 0f, 0f, 0f, -100f,
+            0f, 3f, 0f, 0f, -100f,
+            0f, 0f, 3f, 0f, -100f,
+            0f, 0f, 0f, 1f,    0f
+        ))
+        contrastPaint.colorFilter = ColorMatrixColorFilter(cm)
+        resultCanvas.drawBitmap(gray, 0f, 0f, contrastPaint)
+
+        return result
+    }
+
     private fun recognizeText(uri: Uri) {
-        val image = InputImage.fromFilePath(this, uri)
+        val bitmap = preprocessBitmap(uri)
+        val image = InputImage.fromBitmap(bitmap, 0)
         val recognizer = TextRecognition.getClient(KoreanTextRecognizerOptions.Builder().build())
 
         recognizer.process(image)
