@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
@@ -93,29 +94,52 @@ class MainActivity : AppCompatActivity() {
     private fun preprocessBitmap(uri: Uri): Bitmap {
         val original = BitmapFactory.decodeStream(contentResolver.openInputStream(uri))
 
-        // 1단계: 그레이스케일 변환
-        val gray = Bitmap.createBitmap(original.width, original.height, Bitmap.Config.ARGB_8888)
-        val grayCanvas = Canvas(gray)
-        val grayPaint = Paint()
-        val grayMatrix = ColorMatrix()
-        grayMatrix.setSaturation(0f)
-        grayPaint.colorFilter = ColorMatrixColorFilter(grayMatrix)
-        grayCanvas.drawBitmap(original, 0f, 0f, grayPaint)
+        // 1단계: 해상도 축소 (노이즈 감소 + OCR 최적 크기)
+        val maxWidth = 1200
+        val working = if (original.width > maxWidth) {
+            val ratio = maxWidth.toFloat() / original.width
+            Bitmap.createScaledBitmap(original, maxWidth, (original.height * ratio).toInt(), true)
+        } else original
 
-        // 2단계: 대비 강화 + 이진화 (열영수증 번짐 제거)
-        val result = Bitmap.createBitmap(gray.width, gray.height, Bitmap.Config.ARGB_8888)
-        val resultCanvas = Canvas(result)
-        val contrastPaint = Paint()
-        // 대비 3배, 밝기 -100 → 흐린 글자는 검정으로, 배경은 흰색으로
-        val cm = ColorMatrix(floatArrayOf(
-            3f, 0f, 0f, 0f, -100f,
-            0f, 3f, 0f, 0f, -100f,
-            0f, 0f, 3f, 0f, -100f,
-            0f, 0f, 0f, 1f,    0f
-        ))
-        contrastPaint.colorFilter = ColorMatrixColorFilter(cm)
-        resultCanvas.drawBitmap(gray, 0f, 0f, contrastPaint)
+        // 2단계: 그레이스케일 변환
+        val gray = Bitmap.createBitmap(working.width, working.height, Bitmap.Config.ARGB_8888)
+        Canvas(gray).drawBitmap(working, 0f, 0f, Paint().apply {
+            colorFilter = ColorMatrixColorFilter(ColorMatrix().also { it.setSaturation(0f) })
+        })
 
+        // 3단계: 대비 강화 + 이진화
+        val binary = Bitmap.createBitmap(gray.width, gray.height, Bitmap.Config.ARGB_8888)
+        Canvas(binary).drawBitmap(gray, 0f, 0f, Paint().apply {
+            colorFilter = ColorMatrixColorFilter(ColorMatrix(floatArrayOf(
+                3f, 0f, 0f, 0f, -100f,
+                0f, 3f, 0f, 0f, -100f,
+                0f, 0f, 3f, 0f, -100f,
+                0f, 0f, 0f, 1f,    0f
+            )))
+        })
+
+        // 4단계: 침식(erosion) — 글자 획을 1픽셀 얇게
+        // 두꺼운 획이 0→( 또는 0→G 로 오인식되는 현상 개선
+        val w = binary.width
+        val h = binary.height
+        val src = IntArray(w * h)
+        binary.getPixels(src, 0, w, 0, 0, w, h)
+        val dst = src.copyOf()
+        for (y in 1 until h - 1) {
+            for (x in 1 until w - 1) {
+                val i = y * w + x
+                if (Color.red(src[i]) < 128) {          // 어두운 픽셀(글자)
+                    if (Color.red(src[i - 1]) > 200 ||  // 왼쪽 이웃이 밝으면
+                        Color.red(src[i + 1]) > 200 ||  // 오른쪽
+                        Color.red(src[i - w]) > 200 ||  // 위
+                        Color.red(src[i + w]) > 200) {  // 아래
+                        dst[i] = Color.WHITE             // 경계 픽셀 제거 → 획 얇아짐
+                    }
+                }
+            }
+        }
+        val result = Bitmap.createBitmap(w, h, binary.config)
+        result.setPixels(dst, 0, w, 0, 0, w, h)
         return result
     }
 
