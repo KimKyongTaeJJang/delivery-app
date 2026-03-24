@@ -3,13 +3,6 @@ package com.aideliver.deliveryapp
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.Canvas
-import android.graphics.Color
-import android.graphics.ColorMatrix
-import android.graphics.ColorMatrixColorFilter
-import android.graphics.Paint
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -91,69 +84,17 @@ class MainActivity : AppCompatActivity() {
         takePictureLauncher.launch(photoUri)
     }
 
-    private fun preprocessBitmap(uri: Uri): Bitmap {
-        val original = BitmapFactory.decodeStream(contentResolver.openInputStream(uri))
-
-        // 1단계: 해상도 축소 (노이즈 감소 + OCR 최적 크기)
-        val maxWidth = 1200
-        val working = if (original.width > maxWidth) {
-            val ratio = maxWidth.toFloat() / original.width
-            Bitmap.createScaledBitmap(original, maxWidth, (original.height * ratio).toInt(), true)
-        } else original
-
-        // 2단계: 그레이스케일 변환
-        val gray = Bitmap.createBitmap(working.width, working.height, Bitmap.Config.ARGB_8888)
-        Canvas(gray).drawBitmap(working, 0f, 0f, Paint().apply {
-            colorFilter = ColorMatrixColorFilter(ColorMatrix().also { it.setSaturation(0f) })
-        })
-
-        // 3단계: 대비 강화 + 이진화
-        val binary = Bitmap.createBitmap(gray.width, gray.height, Bitmap.Config.ARGB_8888)
-        Canvas(binary).drawBitmap(gray, 0f, 0f, Paint().apply {
-            colorFilter = ColorMatrixColorFilter(ColorMatrix(floatArrayOf(
-                3f, 0f, 0f, 0f, -100f,
-                0f, 3f, 0f, 0f, -100f,
-                0f, 0f, 3f, 0f, -100f,
-                0f, 0f, 0f, 1f,    0f
-            )))
-        })
-
-        // 4단계: 침식(erosion) 2회 — 글자 획을 2픽셀 얇게
-        // 두꺼운 획이 0→( 또는 0→G 로 오인식되는 현상 개선
-        val w = binary.width
-        val h = binary.height
-        var pixels = IntArray(w * h)
-        binary.getPixels(pixels, 0, w, 0, 0, w, h)
-        repeat(2) {
-            val eroded = pixels.copyOf()
-            for (y in 1 until h - 1) {
-                for (x in 1 until w - 1) {
-                    val i = y * w + x
-                    if (Color.red(pixels[i]) < 128) {
-                        if (Color.red(pixels[i - 1]) > 200 ||
-                            Color.red(pixels[i + 1]) > 200 ||
-                            Color.red(pixels[i - w]) > 200 ||
-                            Color.red(pixels[i + w]) > 200) {
-                            eroded[i] = Color.WHITE
-                        }
-                    }
-                }
-            }
-            pixels = eroded
-        }
-        val result = Bitmap.createBitmap(w, h, binary.config)
-        result.setPixels(pixels, 0, w, 0, 0, w, h)
-        return result
-    }
-
     private fun recognizeText(uri: Uri) {
-        val bitmap = preprocessBitmap(uri)
-        val image = InputImage.fromBitmap(bitmap, 0)
+        val image = InputImage.fromFilePath(this, uri)
         val recognizer = TextRecognition.getClient(KoreanTextRecognizerOptions.Builder().build())
 
         recognizer.process(image)
             .addOnSuccessListener { visionText ->
-                val phoneNumbers = extractPhoneNumbers(visionText.text)
+                // 줄 단위로 분리해서 처리 (블록 구조 활용)
+                val lines = visionText.textBlocks
+                    .flatMap { it.lines }
+                    .map { it.text }
+                val phoneNumbers = extractPhoneNumbers(lines)
                 when {
                     phoneNumbers.isEmpty() -> {
                         selectedPhoneNumber = null
@@ -177,45 +118,51 @@ class MainActivity : AppCompatActivity() {
             }
     }
 
-    private fun extractPhoneNumbers(text: String): List<String> {
-        // OCR 오인식 보정: 숫자 0으로 혼동되는 문자들을 0으로 치환
-        val corrected = text
-            .replace('O', '0').replace('o', '0')  // 영문 O
-            .replace('Q', '0')                    // 영문 Q
-            .replace('ㅇ', '0').replace('ㅎ', '0') // 한글 ㅇ, ㅎ
-        // 숫자·하이픈·점 사이의 공백/줄바꿈 제거 (OCR 분리 출력 전체 대응)
-        val normalized = corrected.replace(Regex("""(?<=[\d\-.])\s+(?=[\d\-.])"""), "")
+    private fun correctOcr(text: String): String {
+        return text
+            .replace('O', '0').replace('o', '0')
+            .replace('Q', '0').replace('G', '0')
+            .replace('(', '0').replace('[', '0').replace('{', '0')
+            .replace('ㅇ', '0').replace('ㅎ', '0')
+    }
 
-        // 0으로 오인식되는 문자 집합 (앞자리 보정용)
+    private fun extractPhoneNumbers(lines: List<String>): List<String> {
         val zeroLikes = setOf('(', '[', '{', 'C', 'G', 'O', 'o', 'Q', 'ㅇ', 'ㅎ', '6')
-        // 5로 오인식되는 문자 집합
-        val fiveLikes = setOf('5', '6', 'S', 's')
-
-        // 첫 글자에 1도 허용 (0을 1로 오인식하는 경우 대응), 자릿수로 검증
+        val fiveLikes  = setOf('5', '6', 'S', 's')
         val regex = Regex("""[01][\d\-\.]{7,13}\d""")
-        return regex.findAll(normalized)
-            .map { match ->
-                val start = match.range.first
-                val prefix = normalized.substring(maxOf(0, start - 2), start)
-                Pair(prefix, match.value)
-            }
-            .filter { (_, raw) ->
-                raw.replace(Regex("""[^\d]"""), "").length in 9..12
-            }
-            .map { (prefix, raw) ->
-                val fixed = if (raw[0] == '1') "0" + raw.substring(1) else raw
-                val phone = fixed.replace(".", "-")
-                                 .replace(Regex("""-{2,}"""), "-")
-                                 .trim('-')
-                // 앞 2글자가 '05'의 오인식 패턴이면 앞에 05 보완
-                // 예: (6→05, (5→05, G5→05, 65→05
-                val prepend05 = prefix.length == 2 &&
-                                prefix[0] in zeroLikes &&
-                                prefix[1] in fiveLikes
-                if (prepend05) "05$phone" else phone
-            }
-            .distinct()
-            .toList()
+
+        fun findInText(text: String): List<String> {
+            val corrected = correctOcr(text)
+            val normalized = corrected.replace(Regex("""(?<=[\d\-.])\s+(?=[\d\-.])"""), "")
+            return regex.findAll(normalized)
+                .map { match ->
+                    val start = match.range.first
+                    val prefix = normalized.substring(maxOf(0, start - 2), start)
+                    Pair(prefix, match.value)
+                }
+                .filter { (_, raw) -> raw.replace(Regex("""[^\d]"""), "").length in 9..12 }
+                .map { (prefix, raw) ->
+                    val fixed = if (raw[0] == '1') "0" + raw.substring(1) else raw
+                    val phone = fixed.replace(".", "-")
+                                     .replace(Regex("""-{2,}"""), "-")
+                                     .trim('-')
+                    val prepend05 = prefix.length == 2 &&
+                                    prefix[0] in zeroLikes &&
+                                    prefix[1] in fiveLikes
+                    if (prepend05) "05$phone" else phone
+                }
+                .toList()
+        }
+
+        val results = mutableListOf<String>()
+
+        // 1. 각 줄 단독 검색
+        lines.forEach { results += findInText(it) }
+
+        // 2. 인접한 두 줄 합쳐서 검색 (번호가 줄 경계에서 분리된 경우 대응)
+        lines.zipWithNext { a, b -> results += findInText(a + b) }
+
+        return results.distinct()
     }
 
     private fun showPhoneNumberSelector(phoneNumbers: List<String>) {
