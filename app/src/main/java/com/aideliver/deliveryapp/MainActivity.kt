@@ -115,23 +115,26 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun extractPhoneNumbers(text: String): List<String> {
-        // OCR 오인식 보정: 영문자 O → 숫자 0 (열영수증에서 혼동 빈번)
-        val corrected = text.replace('O', '0').replace('o', '0')
+        // OCR 오인식 보정: 숫자 0으로 혼동되는 문자들을 0으로 치환
+        val corrected = text
+            .replace('O', '0').replace('o', '0')  // 영문 O
+            .replace('ㅇ', '0')                    // 한글 ㅇ
         // 숫자·하이픈·점 사이의 공백/줄바꿈 제거 (OCR 분리 출력 전체 대응)
         val normalized = corrected.replace(Regex("""(?<=[\d\-.])\s+(?=[\d\-.])"""), "")
 
-        // 0으로 시작하고 숫자·하이픈·점으로 이루어진 블록 추출 후 자릿수로 검증
-        val regex = Regex("""0[\d\-\.]{7,13}\d""")
+        // 첫 글자에 1도 허용 (0을 1로 오인식하는 경우 대응), 자릿수로 검증
+        val regex = Regex("""[01][\d\-\.]{7,13}\d""")
         return regex.findAll(normalized)
             .map { it.value }
             .filter { raw ->
-                // 실제 숫자만 9~12자리인 것만 허용
                 raw.replace(Regex("""[^\d]"""), "").length in 9..12
             }
             .map { raw ->
-                raw.replace(".", "-")
-                   .replace(Regex("""-{2,}"""), "-")
-                   .trim('-')
+                // 첫 글자가 1이면 0으로 정규화 (0을 1로 오인식한 경우)
+                val fixed = if (raw[0] == '1') "0" + raw.substring(1) else raw
+                fixed.replace(".", "-")
+                     .replace(Regex("""-{2,}"""), "-")
+                     .trim('-')
             }
             .distinct()
             .toList()
