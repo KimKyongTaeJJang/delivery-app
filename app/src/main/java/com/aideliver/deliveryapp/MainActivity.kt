@@ -162,16 +162,21 @@ class MainActivity : AppCompatActivity() {
         // 첫 글자에 1도 허용 (0을 1로 오인식하는 경우 대응), 자릿수로 검증
         val regex = Regex("""[01][\d\-\.]{7,13}\d""")
         return regex.findAll(normalized)
-            .map { it.value }
-            .filter { raw ->
+            .map { match ->
+                // 테스트용: 매칭 위치 앞 2글자를 괄호로 표시
+                val start = match.range.first
+                val prefix = normalized.substring(maxOf(0, start - 2), start)
+                Pair(prefix, match.value)
+            }
+            .filter { (_, raw) ->
                 raw.replace(Regex("""[^\d]"""), "").length in 9..12
             }
-            .map { raw ->
-                // 첫 글자가 1이면 0으로 정규화 (0을 1로 오인식한 경우)
+            .map { (prefix, raw) ->
                 val fixed = if (raw[0] == '1') "0" + raw.substring(1) else raw
-                fixed.replace(".", "-")
-                     .replace(Regex("""-{2,}"""), "-")
-                     .trim('-')
+                val phone = fixed.replace(".", "-")
+                                 .replace(Regex("""-{2,}"""), "-")
+                                 .trim('-')
+                "[$prefix]$phone"  // 예: [O5]0503-7517-0374
             }
             .distinct()
             .toList()
@@ -189,8 +194,15 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
+    private fun getCleanNumber(): String? {
+        val text = tvPhoneNumber.text.toString().trim()
+        if (text.isEmpty() || text == "-") return null
+        // 테스트용 접두사 [XX] 제거
+        return text.replace(Regex("""^\[.*?]"""), "").trim()
+    }
+
     private fun makeCall() {
-        val number = tvPhoneNumber.text.toString().trim().takeIf { it.isNotEmpty() && it != "-" } ?: run {
+        val number = getCleanNumber() ?: run {
             Toast.makeText(this, "전화번호를 입력하거나 주문전표를 촬영해 주세요.", Toast.LENGTH_SHORT).show()
             return
         }
@@ -204,7 +216,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun sendSms() {
-        val number = tvPhoneNumber.text.toString().trim().takeIf { it.isNotEmpty() && it != "-" } ?: run {
+        val number = getCleanNumber() ?: run {
             Toast.makeText(this, "전화번호를 입력하거나 주문전표를 촬영해 주세요.", Toast.LENGTH_SHORT).show()
             return
         }
