@@ -115,8 +115,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun extractPhoneNumbers(text: String): List<String> {
+        // OCR 오인식 보정: 영문자 O → 숫자 0 (열영수증에서 혼동 빈번)
+        val corrected = text.replace('O', '0').replace('o', '0')
         // 숫자·하이픈·점 사이의 공백/줄바꿈 제거 (OCR 분리 출력 전체 대응)
-        val normalized = text.replace(Regex("""(?<=[\d\-.])\s+(?=[\d\-.])"""), "")
+        val normalized = corrected.replace(Regex("""(?<=[\d\-.])\s+(?=[\d\-.])"""), "")
 
         // 0으로 시작하고 숫자·하이픈·점으로 이루어진 블록 추출 후 자릿수로 검증
         val regex = Regex("""0[\d\-\.]{7,13}\d""")
