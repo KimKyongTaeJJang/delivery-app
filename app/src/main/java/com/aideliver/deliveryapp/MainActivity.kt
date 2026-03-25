@@ -260,8 +260,10 @@ class MainActivity : AppCompatActivity() {
         }
 
         val prefs = getSharedPreferences("settings", MODE_PRIVATE)
-        val message = prefs.getString("sms_template", "주문이 접수되었습니다. 곧 배달해 드리겠습니다!")
+        val template = prefs.getString("sms_template", "주문이 접수되었습니다. 곧 배달해 드리겠습니다!")
             ?: "주문이 접수되었습니다. 곧 배달해 드리겠습니다!"
+        val linkUrl = prefs.getString("link_url", "") ?: ""
+        val message = if (linkUrl.isNotEmpty()) "$template\n$linkUrl" else template
 
         try {
             val smsManager = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -270,7 +272,12 @@ class MainActivity : AppCompatActivity() {
                 @Suppress("DEPRECATION")
                 SmsManager.getDefault()
             }
-            smsManager.sendTextMessage(number, null, message, null, null)
+            val parts = smsManager.divideMessage(message)
+            if (parts.size == 1) {
+                smsManager.sendTextMessage(number, null, message, null, null)
+            } else {
+                smsManager.sendMultipartTextMessage(number, null, parts, null, null)
+            }
             Toast.makeText(this, "문자가 전송되었습니다.", Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
             Toast.makeText(this, "전송 실패: ${e.message}", Toast.LENGTH_LONG).show()
