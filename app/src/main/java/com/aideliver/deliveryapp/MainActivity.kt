@@ -125,33 +125,31 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun extractAddress(lines: List<String>): String? {
-        // 도로명주소 핵심 패턴: 한글로 끝나는 도로명(로/길) + 건물번호
-        val roadRegex = Regex("""[가-힣\w]+(로|길)\s*\d+[가-힣\d\-\s]*""")
+        // 전체 OCR 텍스트를 한 줄로 합침 (줄 분리 대응)
+        val fullText = lines.joinToString(" ")
 
-        data class Candidate(val text: String, val lineIndex: Int)
-        val candidates = mutableListOf<Candidate>()
+        // 1단계: 시/군으로 시작하는 위치 찾기
+        val cityRegex = Regex("""[가-힣]+(특별시|광역시|특별자치시|특별자치도|시|군)""")
+        val cityMatch = cityRegex.find(fullText) ?: return null
 
-        // 단일 줄에서 탐지
-        for (i in lines.indices) {
-            val match = roadRegex.find(lines[i]) ?: continue
-            // 앞 줄에 시/구/동 정보가 있으면 포함
-            val prefix = if (i > 0 && lines[i - 1].any { it in "시도구군동읍면" }) lines[i - 1].trim() + " " else ""
-            // 뒷 줄에 동/호수 정보가 있으면 포함
-            val suffix = if (i < lines.size - 1 && lines[i + 1].contains(Regex("""\d+\s*동|\d+\s*호"""))) " " + lines[i + 1].trim() else ""
-            candidates += Candidate(prefix + match.value.trim() + suffix, i)
+        // 시/군 이후 텍스트에서 도로명(로/길) + 건물번호 패턴 탐지
+        // 지번주소(동/읍/면/리 + 숫자)와 구분하기 위해 반드시 로/길로 끝나는 도로명만 허용
+        val roadRegex = Regex("""[가-힣]+(대로|로|길)\s*\d+(-\d+)?""")
+        val afterCity = fullText.substring(cityMatch.range.first)
+        val roadMatch = roadRegex.find(afterCity) ?: return null
+
+        // 시/군 ~ 도로명+번지 끝까지 추출
+        val addressEnd = cityMatch.range.first + roadMatch.range.last + 1
+        var address = fullText.substring(cityMatch.range.first, addressEnd).trim()
+
+        // 2단계: 바로 뒤에 아파트 동/호 정보가 있으면 추가 (지번 주소 줄은 제외)
+        val remaining = fullText.substring(addressEnd).trimStart().trimStart(',').trimStart()
+        val aptMatch = Regex("""^\d+동\s*\d+호""").find(remaining)
+        if (aptMatch != null) {
+            address += " " + aptMatch.value.trim()
         }
 
-        // 인접 두 줄 합쳐서도 탐지 (로/길이 줄 경계에서 분리된 경우)
-        for (i in 0 until lines.size - 1) {
-            val combined = lines[i] + " " + lines[i + 1]
-            val match = roadRegex.find(combined) ?: continue
-            if (candidates.none { it.lineIndex == i || it.lineIndex == i + 1 }) {
-                candidates += Candidate(match.value.trim(), i)
-            }
-        }
-
-        // 가장 긴 후보 반환 (더 완전한 주소일 가능성 높음)
-        return candidates.maxByOrNull { it.text.length }?.text
+        return address
     }
 
     private fun openNavi() {
