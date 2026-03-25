@@ -1,47 +1,15 @@
-<?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="20dp"
-    android:background="#FAFAFA">
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="자동 전송 문자 내용"
-        android:textSize="16sp"
-        android:textStyle="bold"
-        android:textColor="#1A1A1A"
-        android:paddingBottom="6dp" />
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="[문자 전송] 버튼을 눌렀을 때 자동으로 전송될 문자 내용입니다."
-        android:textSize="13sp"
-        android:textColor="#757575"
-        android:paddingBottom="14dp" />
-
-    <EditText
-        android:id="@+id/etSmsTemplate"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:gravity="top|start"
-        android:padding="12dp"
-        android:textSize="16sp"
-        android:background="#FFFFFF"
-        android:inputType="textMultiLine"
-        android:hint="전송할 문자 내용을 입력하세요..." />
-
-    <Button
-        android:id="@+id/btnSave"
-        android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:text="저장"
-        android:textSize="17sp"
-        android:backgroundTint="#1976D2"
-        android:layout_marginTop="16dp" />
-
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:background="#FAFAFA">
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="20dp">
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="자동 전송 문자 내용" android:textSize="16sp" android:textStyle="bold" android:textColor="#1A1A1A" android:paddingBottom="6dp"/>
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="[문자 전송] 버튼을 눌렀을 때 자동으로 전송될 문자 내용입니다." android:textSize="13sp" android:textColor="#757575" android:paddingBottom="14dp"/>
+<EditText android:id="@+id/etSmsTemplate" android:layout_width="match_parent" android:layout_height="120dp" android:gravity="top|start" android:padding="12dp" android:textSize="16sp" android:background="#FFFFFF" android:inputType="textMultiLine" android:hint="전송할 문자 내용을 입력하세요..."/>
+<!--  링크 주소 섹션  -->
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="링크 주소" android:textSize="16sp" android:textStyle="bold" android:textColor="#1A1A1A" android:paddingTop="24dp" android:paddingBottom="6dp"/>
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="문자 전송 시 문자 내용 아래에 함께 전송됩니다. 수정은 비밀번호가 필요합니다." android:textSize="13sp" android:textColor="#757575" android:paddingBottom="10dp"/>
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+<TextView android:id="@+id/tvLinkUrl" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:padding="12dp" android:textSize="14sp" android:textColor="#1A1A1A" android:background="#FFFFFF" android:hint="링크 주소 없음" android:textColorHint="#BDBDBD" android:singleLine="true" android:ellipsize="end"/>
+<Button android:id="@+id/btnEditLink" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="수정" android:textSize="14sp" android:backgroundTint="#757575" android:layout_marginStart="8dp"/>
 </LinearLayout>
+<Button android:id="@+id/btnSave" android:layout_width="match_parent" android:layout_height="56dp" android:text="저장" android:textSize="17sp" android:backgroundTint="#1976D2" android:layout_marginTop="24dp"/>
+</LinearLayout>
+</ScrollView>
