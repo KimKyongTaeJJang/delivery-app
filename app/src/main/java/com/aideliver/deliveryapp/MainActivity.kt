@@ -28,6 +28,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var ivReceipt: ImageView
     private lateinit var tvPhoneNumber: EditText
+    private lateinit var tvAddress: EditText
     private lateinit var tvStatus: TextView
 
     private var selectedPhoneNumber: String? = null
@@ -50,6 +51,7 @@ class MainActivity : AppCompatActivity() {
 
         ivReceipt = findViewById(R.id.ivReceipt)
         tvPhoneNumber = findViewById(R.id.tvPhoneNumber)
+        tvAddress = findViewById(R.id.tvAddress)
         tvStatus = findViewById(R.id.tvStatus)
 
         requestPermissions()
@@ -57,6 +59,7 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btnCamera).setOnClickListener { openCamera() }
         findViewById<Button>(R.id.btnCall).setOnClickListener { makeCall() }
         findViewById<Button>(R.id.btnSms).setOnClickListener { sendSms() }
+        findViewById<Button>(R.id.btnNavi).setOnClickListener { openNavi() }
         findViewById<Button>(R.id.btnSettings).setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
@@ -111,11 +114,69 @@ class MainActivity : AppCompatActivity() {
                         showPhoneNumberSelector(phoneNumbers)
                     }
                 }
+
+                val address = extractAddress(lines)
+                tvAddress.setText(address ?: "-")
             }
             .addOnFailureListener { e ->
                 tvStatus.text = "인식 실패"
                 Toast.makeText(this, "인식 실패: ${e.message}", Toast.LENGTH_SHORT).show()
             }
+    }
+
+    private fun extractAddress(lines: List<String>): String? {
+        // 도로명주소 핵심 패턴: 한글로 끝나는 도로명(로/길) + 건물번호
+        val roadRegex = Regex("""[가-힣\w]+(로|길)\s*\d+[가-힣\d\-\s]*""")
+
+        data class Candidate(val text: String, val lineIndex: Int)
+        val candidates = mutableListOf<Candidate>()
+
+        // 단일 줄에서 탐지
+        for (i in lines.indices) {
+            val match = roadRegex.find(lines[i]) ?: continue
+            // 앞 줄에 시/구/동 정보가 있으면 포함
+            val prefix = if (i > 0 && lines[i - 1].any { it in "시도구군동읍면" }) lines[i - 1].trim() + " " else ""
+            // 뒷 줄에 동/호수 정보가 있으면 포함
+            val suffix = if (i < lines.size - 1 && lines[i + 1].contains(Regex("""\d+\s*동|\d+\s*호"""))) " " + lines[i + 1].trim() else ""
+            candidates += Candidate(prefix + match.value.trim() + suffix, i)
+        }
+
+        // 인접 두 줄 합쳐서도 탐지 (로/길이 줄 경계에서 분리된 경우)
+        for (i in 0 until lines.size - 1) {
+            val combined = lines[i] + " " + lines[i + 1]
+            val match = roadRegex.find(combined) ?: continue
+            if (candidates.none { it.lineIndex == i || it.lineIndex == i + 1 }) {
+                candidates += Candidate(match.value.trim(), i)
+            }
+        }
+
+        // 가장 긴 후보 반환 (더 완전한 주소일 가능성 높음)
+        return candidates.maxByOrNull { it.text.length }?.text
+    }
+
+    private fun openNavi() {
+        val address = tvAddress.text.toString().trim()
+        if (address.isEmpty() || address == "-") {
+            Toast.makeText(this, "주소를 입력하거나 주문전표를 촬영해 주세요.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val encodedAddress = Uri.encode(address)
+
+        // 카카오맵 앱으로 주소 검색 실행
+        val kakaoIntent = Intent(Intent.ACTION_VIEW, Uri.parse("kakaomap://search?q=$encodedAddress"))
+        if (packageManager.resolveActivity(kakaoIntent, 0) != null) {
+            startActivity(kakaoIntent)
+            return
+        }
+
+        // 카카오맵 미설치 시 기본 지도 앱 사용
+        val geoIntent = Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=$encodedAddress"))
+        if (packageManager.resolveActivity(geoIntent, 0) != null) {
+            startActivity(geoIntent)
+        } else {
+            Toast.makeText(this, "지도 앱이 설치되어 있지 않습니다.", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun correctOcr(text: String): String {
