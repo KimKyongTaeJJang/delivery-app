@@ -125,31 +125,22 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun extractAddress(lines: List<String>): String? {
-        // 전체 OCR 텍스트를 한 줄로 합침 (줄 분리 대응)
-        val fullText = lines.joinToString(" ")
+        // 도로명(로/길) + 건물번호가 있는 줄에서, 도로명 글자부터 끝까지만 반환
+        val roadRegex = Regex("""[가-힣]+(대로|로|길)\s*\d+(-\d+)?.*""")
 
-        // 1단계: 시/군으로 시작하는 위치 찾기
-        val cityRegex = Regex("""[가-힣]+(특별시|광역시|특별자치시|특별자치도|시|군)""")
-        val cityMatch = cityRegex.find(fullText) ?: return null
-
-        // 시/군 이후 텍스트에서 도로명(로/길) + 건물번호 패턴 탐지
-        // 지번주소(동/읍/면/리 + 숫자)와 구분하기 위해 반드시 로/길로 끝나는 도로명만 허용
-        val roadRegex = Regex("""[가-힣]+(대로|로|길)\s*\d+(-\d+)?""")
-        val afterCity = fullText.substring(cityMatch.range.first)
-        val roadMatch = roadRegex.find(afterCity) ?: return null
-
-        // 시/군 ~ 도로명+번지 끝까지 추출
-        val addressEnd = cityMatch.range.first + roadMatch.range.last + 1
-        var address = fullText.substring(cityMatch.range.first, addressEnd).trim()
-
-        // 2단계: 바로 뒤에 아파트 동/호 정보가 있으면 추가 (지번 주소 줄은 제외)
-        val remaining = fullText.substring(addressEnd).trimStart().trimStart(',').trimStart()
-        val aptMatch = Regex("""^\d+동\s*\d+호""").find(remaining)
-        if (aptMatch != null) {
-            address += " " + aptMatch.value.trim()
+        for (line in lines) {
+            val match = roadRegex.find(line) ?: continue
+            return match.value.trim()
         }
 
-        return address
+        // 인접 두 줄 합쳐서도 탐지 (도로명이 줄 경계에서 분리된 경우)
+        for (i in 0 until lines.size - 1) {
+            val combined = lines[i] + " " + lines[i + 1]
+            val match = roadRegex.find(combined) ?: continue
+            return match.value.trim()
+        }
+
+        return null
     }
 
     private fun openNavi() {
