@@ -16,8 +16,11 @@
 </LinearLayout>
 <!--  상태 메시지  -->
 <TextView android:id="@+id/tvStatus" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="" android:textSize="13sp" android:textColor="#757575" android:gravity="center" android:paddingBottom="8dp"/>
-<!--  촬영 버튼  -->
-<Button android:id="@+id/btnCamera" android:layout_width="match_parent" android:layout_height="56dp" android:text="주문전표 촬영" android:textSize="17sp" android:backgroundTint="#1976D2" android:layout_marginBottom="8dp"/>
+<!--  촬영 / 가져오기 버튼  -->
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="8dp">
+<Button android:id="@+id/btnCamera" android:layout_width="0dp" android:layout_height="56dp" android:layout_weight="1" android:text="촬영" android:textSize="17sp" android:backgroundTint="#1976D2" android:layout_marginEnd="4dp"/>
+<Button android:id="@+id/btnImport" android:layout_width="0dp" android:layout_height="56dp" android:layout_weight="1" android:text="가져오기" android:textSize="17sp" android:backgroundTint="#00838F" android:layout_marginStart="4dp"/>
+</LinearLayout>
 <!--  통화 / 문자 / 네비 버튼  -->
 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="8dp">
 <Button android:id="@+id/btnCall" android:layout_width="0dp" android:layout_height="56dp" android:layout_weight="1" android:text="통화" android:textSize="17sp" android:backgroundTint="#2E7D32" android:layout_marginEnd="4dp"/>
