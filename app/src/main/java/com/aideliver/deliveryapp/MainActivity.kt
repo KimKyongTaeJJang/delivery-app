@@ -19,6 +19,10 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import com.google.mlkit.nl.entityextraction.Entity
+import com.google.mlkit.nl.entityextraction.EntityExtraction
+import com.google.mlkit.nl.entityextraction.EntityExtractionParams
+import com.google.mlkit.nl.entityextraction.EntityExtractorOptions
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.korean.KoreanTextRecognizerOptions
@@ -93,35 +97,93 @@ class MainActivity : AppCompatActivity() {
 
         recognizer.process(image)
             .addOnSuccessListener { visionText ->
-                // 줄 단위로 분리해서 처리 (블록 구조 활용)
                 val lines = visionText.textBlocks
                     .flatMap { it.lines }
                     .map { it.text }
-                val phoneNumbers = extractPhoneNumbers(lines)
-                when {
-                    phoneNumbers.isEmpty() -> {
-                        selectedPhoneNumber = null
-                        tvPhoneNumber.setText("-")
-                        tvStatus.text = "전화번호를 찾을 수 없습니다"
-                    }
-                    phoneNumbers.size == 1 -> {
-                        selectedPhoneNumber = phoneNumbers[0]
-                        tvPhoneNumber.setText(phoneNumbers[0])
-                        tvStatus.text = "전화번호 인식 완료"
-                    }
-                    else -> {
-                        tvStatus.text = "전화번호 ${phoneNumbers.size}개 발견 - 선택해 주세요"
-                        showPhoneNumberSelector(phoneNumbers)
-                    }
-                }
+                val fullText = visionText.text
 
-                val address = extractAddress(lines)
-                tvAddress.setText(address ?: "-")
+                tvStatus.text = "번호/주소 분석 중..."
+                extractWithEntityExtraction(fullText, lines) { phones, address ->
+                    when {
+                        phones.isEmpty() -> {
+                            selectedPhoneNumber = null
+                            tvPhoneNumber.setText("")
+                            tvStatus.text = "전화번호를 찾을 수 없습니다"
+                        }
+                        phones.size == 1 -> {
+                            selectedPhoneNumber = phones[0]
+                            tvPhoneNumber.setText(phones[0])
+                            tvStatus.text = "전화번호 인식 완료"
+                        }
+                        else -> {
+                            tvStatus.text = "전화번호 ${phones.size}개 발견 - 선택해 주세요"
+                            showPhoneNumberSelector(phones)
+                        }
+                    }
+                    tvAddress.setText(address ?: "")
+                }
             }
             .addOnFailureListener { e ->
                 tvStatus.text = "인식 실패"
                 Toast.makeText(this, "인식 실패: ${e.message}", Toast.LENGTH_SHORT).show()
             }
+    }
+
+    private fun extractWithEntityExtraction(
+        fullText: String,
+        lines: List<String>,
+        onComplete: (phones: List<String>, address: String?) -> Unit
+    ) {
+        val extractor = EntityExtraction.getClient(
+            EntityExtractorOptions.Builder(EntityExtractorOptions.KOREAN).build()
+        )
+
+        extractor.downloadModelIfNeeded()
+            .addOnSuccessListener {
+                val params = EntityExtractionParams.Builder(fullText)
+                    .setEntityTypesFilter(setOf(Entity.TYPE_PHONE, Entity.TYPE_ADDRESS))
+                    .build()
+
+                extractor.annotate(params)
+                    .addOnSuccessListener { annotations ->
+                        val phones = annotations
+                            .filter { ann -> ann.entities.any { it.type == Entity.TYPE_PHONE } }
+                            .map { ann ->
+                                val digits = ann.annotatedText.replace(Regex("""[^\d]"""), "")
+                                normalizePhone(digits)
+                            }
+                            .filter { it.isNotEmpty() }
+                            .distinct()
+
+                        val address = annotations
+                            .firstOrNull { ann -> ann.entities.any { it.type == Entity.TYPE_ADDRESS } }
+                            ?.annotatedText
+
+                        // Entity Extraction 결과 없으면 정규식으로 폴백
+                        val finalPhones = if (phones.isNotEmpty()) phones else extractPhoneNumbers(lines)
+                        val finalAddress = if (!address.isNullOrEmpty()) address else extractAddress(lines)
+
+                        onComplete(finalPhones, finalAddress)
+                    }
+                    .addOnFailureListener {
+                        onComplete(extractPhoneNumbers(lines), extractAddress(lines))
+                    }
+            }
+            .addOnFailureListener {
+                // 모델 다운로드 실패 → 정규식으로 폴백
+                onComplete(extractPhoneNumbers(lines), extractAddress(lines))
+            }
+    }
+
+    private fun normalizePhone(digits: String): String {
+        if (digits.length !in 9..12) return ""
+        val d = if (digits.startsWith("1")) "0$digits" else digits
+        return when (d.length) {
+            11 -> "${d.substring(0,3)}-${d.substring(3,7)}-${d.substring(7)}"
+            10 -> "${d.substring(0,3)}-${d.substring(3,6)}-${d.substring(6)}"
+            9  -> "${d.substring(0,2)}-${d.substring(2,5)}-${d.substring(5)}"
+            else -> d
+        }
     }
 
     private fun extractAddress(lines: List<String>): String? {
@@ -145,7 +207,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun openNavi() {
         val address = tvAddress.text.toString().trim()
-        if (address.isEmpty() || address == "-") {
+        if (address.isEmpty()) {
             Toast.makeText(this, "주소를 입력하거나 주문전표를 촬영해 주세요.", Toast.LENGTH_SHORT).show()
             return
         }
@@ -229,7 +291,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun getCleanNumber(): String? {
         val text = tvPhoneNumber.text.toString().trim()
-        if (text.isEmpty() || text == "-") return null
+        if (text.isEmpty()) return null
         return text
     }
 
