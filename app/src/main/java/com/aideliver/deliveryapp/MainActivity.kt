@@ -38,7 +38,6 @@ class MainActivity : AppCompatActivity() {
 
     private var selectedPhoneNumber: String? = null
     private lateinit var photoUri: Uri
-    private var waitingForClipboard = false
 
     private val takePictureLauncher = registerForActivityResult(
         ActivityResultContracts.TakePicture()
@@ -63,6 +62,7 @@ class MainActivity : AppCompatActivity() {
         requestPermissions()
 
         findViewById<Button>(R.id.btnCamera).setOnClickListener { openCamera() }
+        findViewById<Button>(R.id.btnImport).setOnClickListener { readFromClipboard() }
         findViewById<Button>(R.id.btnCall).setOnClickListener { makeCall() }
         findViewById<Button>(R.id.btnSms).setOnClickListener { sendSms() }
         findViewById<Button>(R.id.btnNavi).setOnClickListener { openNavi() }
@@ -84,30 +84,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        if (waitingForClipboard) {
-            waitingForClipboard = false
-            readFromClipboard()
-        }
-    }
-
     private fun openCamera() {
-        val lensIntent = Intent().setClassName(
-            "com.google.android.googlequicksearchbox",
-            "com.google.android.apps.search.lens.LensActivity"
-        )
-        try {
-            waitingForClipboard = true
-            startActivity(lensIntent)
-        } catch (e: Exception) {
-            waitingForClipboard = false
-            Toast.makeText(this, "구글 렌즈를 찾을 수 없어 기본 카메라를 사용합니다.", Toast.LENGTH_SHORT).show()
-            openBuiltinCamera()
-        }
-    }
-
-    private fun openBuiltinCamera() {
         val photoFile = File.createTempFile(
             "receipt_", ".jpg",
             getExternalFilesDir(Environment.DIRECTORY_PICTURES)
