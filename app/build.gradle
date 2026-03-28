@@ -39,4 +39,7 @@ dependencies {
 
     // ML Kit 한국어 문자 인식 (전화번호 OCR)
     implementation 'com.google.mlkit:text-recognition-korean:16.0.0'
+
+    // ML Kit 엔티티 추출 (전화번호·주소 자동 감지)
+    implementation 'com.google.mlkit:entity-extraction:16.0.0-beta5'
 }
