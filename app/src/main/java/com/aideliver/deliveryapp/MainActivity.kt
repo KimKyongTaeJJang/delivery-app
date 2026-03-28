@@ -97,10 +97,11 @@ class MainActivity : AppCompatActivity() {
             "com.google.android.googlequicksearchbox",
             "com.google.android.apps.search.lens.LensActivity"
         )
-        if (packageManager.resolveActivity(lensIntent, 0) != null) {
+        try {
             waitingForClipboard = true
             startActivity(lensIntent)
-        } else {
+        } catch (e: Exception) {
+            waitingForClipboard = false
             Toast.makeText(this, "구글 렌즈를 찾을 수 없어 기본 카메라를 사용합니다.", Toast.LENGTH_SHORT).show()
             openBuiltinCamera()
         }
