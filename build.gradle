@@ -1,4 +1,45 @@
 plugins {
-    id 'com.android.application' version '8.2.2' apply false
-    id 'org.jetbrains.kotlin.android' version '1.9.22' apply false
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+android {
+    namespace 'com.aideliver.deliveryapp'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.aideliver.deliveryapp"
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+}
+
+dependencies {
+    implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.11.0'
+
+    // ML Kit 한국어 문자 인식 (전화번호 OCR)
+    implementation 'com.google.mlkit:text-recognition-korean:16.0.0'
+
+    // ML Kit 엔티티 추출 (전화번호·주소 자동 감지)
+    implementation 'com.google.mlkit:entity-extraction:16.0.0-beta5'
 }
