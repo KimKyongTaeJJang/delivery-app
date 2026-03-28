@@ -1,6 +1,7 @@
 package com.aideliver.deliveryapp
 
 import android.Manifest
+import android.content.ClipboardManager
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -37,6 +38,7 @@ class MainActivity : AppCompatActivity() {
 
     private var selectedPhoneNumber: String? = null
     private lateinit var photoUri: Uri
+    private var waitingForClipboard = false
 
     private val takePictureLauncher = registerForActivityResult(
         ActivityResultContracts.TakePicture()
@@ -82,13 +84,65 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (waitingForClipboard) {
+            waitingForClipboard = false
+            readFromClipboard()
+        }
+    }
+
     private fun openCamera() {
+        val lensIntent = Intent().setClassName(
+            "com.google.android.googlequicksearchbox",
+            "com.google.android.apps.search.lens.LensActivity"
+        )
+        if (packageManager.resolveActivity(lensIntent, 0) != null) {
+            waitingForClipboard = true
+            startActivity(lensIntent)
+        } else {
+            Toast.makeText(this, "구글 렌즈를 찾을 수 없어 기본 카메라를 사용합니다.", Toast.LENGTH_SHORT).show()
+            openBuiltinCamera()
+        }
+    }
+
+    private fun openBuiltinCamera() {
         val photoFile = File.createTempFile(
             "receipt_", ".jpg",
             getExternalFilesDir(Environment.DIRECTORY_PICTURES)
         )
         photoUri = FileProvider.getUriForFile(this, "${packageName}.fileprovider", photoFile)
         takePictureLauncher.launch(photoUri)
+    }
+
+    private fun readFromClipboard() {
+        val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+        val text = clipboard.primaryClip?.getItemAt(0)?.coerceToText(this)?.toString()
+        if (text.isNullOrBlank()) {
+            tvStatus.text = "클립보드에 텍스트가 없습니다"
+            return
+        }
+        tvStatus.text = "번호/주소 분석 중..."
+        val lines = text.lines().filter { it.isNotBlank() }
+        extractWithEntityExtraction(text, lines) { phones, address ->
+            when {
+                phones.isEmpty() -> {
+                    selectedPhoneNumber = null
+                    tvPhoneNumber.setText("")
+                    tvStatus.text = "전화번호를 찾을 수 없습니다"
+                }
+                phones.size == 1 -> {
+                    selectedPhoneNumber = phones[0]
+                    tvPhoneNumber.setText(phones[0])
+                    tvStatus.text = "전화번호 인식 완료"
+                }
+                else -> {
+                    tvStatus.text = "전화번호 ${phones.size}개 발견 - 선택해 주세요"
+                    showPhoneNumberSelector(phones)
+                }
+            }
+            tvAddress.setText(address ?: "")
+        }
     }
 
     private fun recognizeText(uri: Uri) {
